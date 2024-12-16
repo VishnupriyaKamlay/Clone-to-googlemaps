@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Styled Google Maps Clone</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* Style for the map container */
+        #map {
+            height: 100vh;
+            width: 100%;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border: 5px solid #0078d7; /* Blue border for the map */
+            border-radius: 10px;
+        }
+
+        /* Style for the coordinates info box */
+        .coordinates {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+        }
+
+        /* Add bold labels inside the coordinates box */
+        .coordinates p {
+            margin: 5px 0;
+        }
+
+        .coordinates b {
+            color: #0078d7; /* Matching blue tone for labels */
+        }
+
+        /* Hover effect for better interactivity */
+        .coordinates:hover {
+            background: rgba(240, 240, 240, 0.95);
+            transition: background 0.3s ease-in-out;
+        }
+
+        /* Body styling */
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            background: #f4f4f9;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="coordinates">
+        <p><b>Origin:</b> <span id="origin">Click on the map</span></p>
+        <p><b>Destination:</b> <span id="destination">Click on the map</span></p>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize the map
+        const map = L.map('map').setView([12.9716, 77.5946], 13); // Bengaluru center
+
+        // Add a tile layer limited to Bengaluru
+        const bounds = [
+            [12.834, 77.421], // Southwestern corner of Bengaluru
+            [13.173, 77.739]  // Northeastern corner of Bengaluru
+        ];
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors',
+            bounds: bounds
+        }).addTo(map);
+
+        map.setMaxBounds(bounds);
+        map.on('drag', function () {
+            map.panInsideBounds(bounds, { animate: false });
+        });
+
+        let originMarker = null;
+        let destinationMarker = null;
+        let polyline = null;
+
+        // Function to handle map click events
+        function onMapClick(e) {
+            if (!originMarker) {
+                originMarker = L.marker(e.latlng).addTo(map).bindPopup("Origin").openPopup();
+                document.getElementById('origin').textContent = `${e.latlng.lat}, ${e.latlng.lng}`;
+            } else if (!destinationMarker) {
+                destinationMarker = L.marker(e.latlng).addTo(map).bindPopup("Destination").openPopup();
+                document.getElementById('destination').textContent = `${e.latlng.lat}, ${e.latlng.lng}`;
+
+                // Call backend API to calculate shortest path
+                fetch(`/shortest-path?origin=${originMarker.getLatLng().lat},${originMarker.getLatLng().lng}&destination=${destinationMarker.getLatLng().lat},${destinationMarker.getLatLng().lng}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (polyline) map.removeLayer(polyline);
+                        polyline = L.polyline(data.path, { color: 'blue' }).addTo(map);
+                        map.fitBounds(polyline.getBounds());
+                    })
+                    .catch(err => console.error('Error fetching path:', err));
+            }
+        }
+
+        // Add click event listener to the map
+        map.on('click', onMapClick);
+    </script>
+</body>
+</html>
